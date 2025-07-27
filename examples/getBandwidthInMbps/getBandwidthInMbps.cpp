@@ -1,5 +1,5 @@
 /*
- Copyright (C) Giuliano Catrambone (giuliano.catrambone@catrasoftware.it)
+ Copyright (C) Giuliano Catrambone (giulianocatrambone@gmail.com)
 
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -21,43 +21,20 @@
  with the authors.
 */
 
-#ifndef System_h
-#define System_h
-
-#include <cstdint>
-#include <map>
-#include <string>
+#include "System.h"
+#include <iostream>
 
 using namespace std;
 
-/**
-	The System class is a collection of static methods just
-	to hide the differences to retrieve information between
-	different operative system.
-*/
-class System
+int main()
 {
+	map<string, pair<uint64_t, uint64_t>> bandwidth = System::getBandwidthInMbps();
 
-  public:
-	/*
-	metodi completi ma non ancora pubblicati
-	BOOL GetOSVersion(char *pOS)
-	char *GetCPUInfo()
-	int GetProcessorNum()
-	BOOL GetLocalHostName(char *name)
-	*/
+	for (const auto &[iface, stats] : bandwidth)
+	{
+		auto [receivedBytes, transmittedBytes] = stats;
+		cout << "Iface: " << iface << ", receivedBytes: " << receivedBytes << ", transmittedBytes: " << transmittedBytes << endl;
+	}
 
-	/**
-			Return the host name of the machine.
-	*/
-	static string hostName();
-
-	static string homeDirectory();
-
-	static map<string, pair<uint64_t, uint64_t>> getBandwidthInMbps();
-
-  private:
-	static map<string, pair<uint64_t, uint64_t>> getNetworkUsage();
-};
-
-#endif
+	return 0;
+}

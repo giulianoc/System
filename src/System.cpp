@@ -23,6 +23,7 @@
 
 #include "System.h"
 #include <stdexcept>
+#include <utility>
 #ifdef WIN32
 // #include <process.h>
 #include <UserEnv.h>
@@ -545,40 +546,63 @@ string System::homeDirectory()
 #endif
 }
 
-pair<uint64_t, uint64_t> System::getBandwidthInMbps()
+map<string, pair<uint64_t, uint64_t>> System::getBandwidthInMbps()
 {
-	auto [rx1, tx1] = getNetworkUsage();
-	this_thread::sleep_for(chrono::seconds(1));
-	auto [rx2, tx2] = getNetworkUsage();
+	map<string, pair<uint64_t, uint64_t>> bandwidthInMbps;
 
-	return make_pair(rx2 - rx1, tx2 - tx1);
+	auto before = getNetworkUsage();
+	this_thread::sleep_for(chrono::seconds(1));
+	auto after = getNetworkUsage();
+
+	for (const auto &[iface, afterStats] : after)
+	{
+		// non real interface
+		if (iface == "lo" || iface.starts_with("docker"))
+			continue;
+
+		auto it = before.find(iface);
+		if (it != before.end())
+		{
+			auto [receivedBytesBefore, transmittedBytesBefore] = it->second;
+			auto [receivedBytesAfter, transmittedBytesAfter] = afterStats;
+
+			bandwidthInMbps[iface] = make_pair(receivedBytesAfter - receivedBytesBefore, transmittedBytesAfter - transmittedBytesBefore);
+		}
+	}
+
+	return bandwidthInMbps;
 }
 
-pair<uint64_t, uint64_t> System::getNetworkUsage()
+map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 {
 	ifstream net("/proc/net/dev");
 	string line;
-	// totalXXX indicano i bytes ricevuti/trasmessi da quando è stato riavviato il sistema
-	uint64_t totalReceived = 0, totalTransmitted = 0;
+	map<string, pair<uint64_t, uint64_t>> usage; // iface -> (rx, tx)
 
 	while (getline(net, line))
 	{
 		// line: Interfaccia: bytes    packets errs drop fifo frame compressed multicast
 		// es: eth0: 12345678 1000 0 0 0 0 0 0 9876543 2000 0 0 0 0 0 0
-		if (line.find(":") != string::npos)
+		if (line.find(":") == string::npos)
+			continue;
+
+		string iface;
+		uint64_t receivedBytes, transmittedBytes;
+
+		istringstream iss(line);
+		getline(iss, iface, ':');
+		iface.erase(0, iface.find_first_not_of(" "));
+
+		iss >> receivedBytes;
+		// skips next 7 fields
+		for (int i = 0; i < 7; ++i)
 		{
-			istringstream iss(line);
-			string iface;
-			uint64_t rx, tx;
-			getline(iss, iface, ':');
-			iss >> rx;
-			for (int i = 0; i < 7; ++i)
-				iss.ignore(100, ' '); // skip fields
-			iss >> tx;
-			totalReceived += rx;
-			totalTransmitted += tx;
+			uint64_t tmp;
+			iss >> tmp;
 		}
+		iss >> transmittedBytes;
+		usage[iface] = std::make_pair(receivedBytes, transmittedBytes);
 	}
 
-	return make_pair(totalReceived, totalTransmitted);
+	return usage;
 }
