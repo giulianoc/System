@@ -24,6 +24,7 @@
 #ifndef System_h
 #define System_h
 
+#include <cstdint>
 #include <string>
 
 using namespace std;
@@ -51,6 +52,11 @@ class System
 	static string hostName();
 
 	static string homeDirectory();
+
+	static pair<uint64_t, uint64_t> getBandwidthInMbps();
+
+  private:
+	static pair<uint64_t, uint64_t> getNetworkUsage();
 };
 
 #endif

@@ -32,9 +32,13 @@
 #include <unistd.h>
 #endif
 #include <assert.h>
+#include <chrono>
 #include <errno.h>
+#include <fstream>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <thread>
 
 /*
 Copiati da Xenon
@@ -539,4 +543,42 @@ string System::homeDirectory()
 		return pHome;
 	}
 #endif
+}
+
+pair<uint64_t, uint64_t> System::getBandwidthInMbps()
+{
+	auto [rx1, tx1] = getNetworkUsage();
+	this_thread::sleep_for(chrono::seconds(1));
+	auto [rx2, tx2] = getNetworkUsage();
+
+	return make_pair(rx2 - rx1, tx2 - tx1);
+}
+
+pair<uint64_t, uint64_t> System::getNetworkUsage()
+{
+	ifstream net("/proc/net/dev");
+	string line;
+	// totalXXX indicano i bytes ricevuti/trasmessi da quando è stato riavviato il sistema
+	uint64_t totalReceived = 0, totalTransmitted = 0;
+
+	while (getline(net, line))
+	{
+		// line: Interfaccia: bytes    packets errs drop fifo frame compressed multicast
+		// es: eth0: 12345678 1000 0 0 0 0 0 0 9876543 2000 0 0 0 0 0 0
+		if (line.find(":") != string::npos)
+		{
+			istringstream iss(line);
+			string iface;
+			uint64_t rx, tx;
+			getline(iss, iface, ':');
+			iss >> rx;
+			for (int i = 0; i < 7; ++i)
+				iss.ignore(100, ' '); // skip fields
+			iss >> tx;
+			totalReceived += rx;
+			totalTransmitted += tx;
+		}
+	}
+
+	return make_pair(totalReceived, totalTransmitted);
 }
