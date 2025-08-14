@@ -22,6 +22,7 @@
 */
 
 #include "System.h"
+#include <cstring>
 #include <stdexcept>
 #include <utility>
 #ifdef WIN32
@@ -32,10 +33,14 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 #endif
+#include <arpa/inet.h>
 #include <assert.h>
 #include <chrono>
 #include <errno.h>
 #include <fstream>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -605,4 +610,51 @@ map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 	}
 
 	return usage;
+}
+
+vector<pair<string, string>> System::getActiveNetworkInterface()
+{
+	vector<pair<string, string>> activeNetworkInterfaces;
+
+	struct ifaddrs *ifaddr, *ifa;
+	char addrStr[INET6_ADDRSTRLEN];
+
+	if (getifaddrs(&ifaddr) == -1)
+	{
+		int err = errno;
+		throw runtime_error(std::format("getifad failed, {}", err, strerror(err)));
+	}
+
+	for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+	{
+		if (!ifa->ifa_addr)
+			continue;
+
+		// Salta il loopback
+		if (ifa->ifa_flags & IFF_LOOPBACK)
+			continue;
+
+		// Mostra solo interfacce attive
+		if (!(ifa->ifa_flags & IFF_UP))
+			continue;
+
+		int family = ifa->ifa_addr->sa_family;
+
+		if (family == AF_INET)
+		{ // IPv4
+			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+			inet_ntop(AF_INET, &(sa->sin_addr), addrStr, INET_ADDRSTRLEN);
+			activeNetworkInterfaces.push_back(make_pair(ifa->ifa_name, addrStr));
+		}
+		else if (family == AF_INET6)
+		{ // IPv6
+			struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+			inet_ntop(AF_INET6, &(sa6->sin6_addr), addrStr, INET6_ADDRSTRLEN);
+			activeNetworkInterfaces.push_back(make_pair(ifa->ifa_name, addrStr));
+		}
+	}
+
+	freeifaddrs(ifaddr);
+
+	return activeNetworkInterfaces;
 }

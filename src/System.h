@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -55,6 +56,9 @@ class System
 	static string homeDirectory();
 
 	static map<string, pair<uint64_t, uint64_t>> getBandwidthInMbps();
+
+	// interface name and IP
+	static vector<pair<string, string>> getActiveNetworkInterface();
 
   private:
 	static map<string, pair<uint64_t, uint64_t>> getNetworkUsage();
