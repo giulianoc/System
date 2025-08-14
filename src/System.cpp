@@ -24,6 +24,7 @@
 #include "System.h"
 #include <cstring>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 #ifdef WIN32
 // #include <process.h>
@@ -612,9 +613,9 @@ map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 	return usage;
 }
 
-vector<pair<string, string>> System::getActiveNetworkInterface()
+vector<tuple<string, string, string>> System::getActiveNetworkInterface()
 {
-	vector<pair<string, string>> activeNetworkInterfaces;
+	vector<tuple<string, string, string>> activeNetworkInterfaces;
 
 	struct ifaddrs *ifaddr, *ifa;
 	char addrStr[INET6_ADDRSTRLEN];
@@ -644,13 +645,13 @@ vector<pair<string, string>> System::getActiveNetworkInterface()
 		{ // IPv4
 			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
 			inet_ntop(AF_INET, &(sa->sin_addr), addrStr, INET_ADDRSTRLEN);
-			activeNetworkInterfaces.push_back(make_pair(ifa->ifa_name, addrStr));
+			activeNetworkInterfaces.push_back(make_tuple(ifa->ifa_name, "IPv4", addrStr));
 		}
 		else if (family == AF_INET6)
 		{ // IPv6
 			struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
 			inet_ntop(AF_INET6, &(sa6->sin6_addr), addrStr, INET6_ADDRSTRLEN);
-			activeNetworkInterfaces.push_back(make_pair(ifa->ifa_name, addrStr));
+			activeNetworkInterfaces.push_back(make_tuple(ifa->ifa_name, "IPv6", addrStr));
 		}
 	}
 

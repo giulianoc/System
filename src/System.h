@@ -57,8 +57,8 @@ class System
 
 	static map<string, pair<uint64_t, uint64_t>> getBandwidthInMbps();
 
-	// interface name and IP
-	static vector<pair<string, string>> getActiveNetworkInterface();
+	// interface name, type and IP
+	static vector<tuple<string, string, string>> getActiveNetworkInterface();
 
   private:
 	static map<string, pair<uint64_t, uint64_t>> getNetworkUsage();
