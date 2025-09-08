@@ -55,9 +55,9 @@ class System
 
 	static string homeDirectory();
 
-	// static map<string, pair<uint64_t, uint64_t>> getBandwidthInMbps();
+	static map<string, pair<uint64_t, uint64_t>> getBandwidthInBytes();
 
-	static map<string, pair<uint64_t, uint64_t>> getBandwidthInBytes(int intervalSeconds = 1, int windowSize = 5);
+	static map<string, pair<uint64_t, uint64_t>> getAvgBandwidthInBytes(int intervalSeconds = 1, int windowSize = 5);
 
 	// interface name, type and IP
 	static vector<tuple<string, string, string>> getActiveNetworkInterface();

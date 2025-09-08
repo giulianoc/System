@@ -553,8 +553,7 @@ string System::homeDirectory()
 #endif
 }
 
-/*
-map<string, pair<uint64_t, uint64_t>> System::getBandwidthInMbps()
+map<string, pair<uint64_t, uint64_t>> System::getBandwidthInBytes()
 {
 	map<string, pair<uint64_t, uint64_t>> bandwidthInMbps;
 
@@ -580,16 +579,15 @@ map<string, pair<uint64_t, uint64_t>> System::getBandwidthInMbps()
 
 	return bandwidthInMbps;
 }
-*/
 
-map<string, pair<uint64_t, uint64_t>> System::getBandwidthInBytes(int intervalSeconds, int windowSize)
+map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
 	map<string, vector<pair<uint64_t, uint64_t>>> history;
 
 	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
 	{
-		auto current = getNetworkUsage();
+		auto current = getBandwidthInBytes();
 
 		for (auto &[iface, usage] : current)
 		{
