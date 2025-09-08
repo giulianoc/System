@@ -22,6 +22,7 @@
 */
 
 #include "System.h"
+#include <chrono>
 #include <cstring>
 #include <deque>
 #include <stdexcept>
@@ -553,13 +554,64 @@ string System::homeDirectory()
 #endif
 }
 
-map<string, pair<uint64_t, uint64_t>> System::getBandwidthInBytes()
+map<string, pair<double, double>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
 {
-	map<string, pair<uint64_t, uint64_t>> bandwidthInMbps;
+	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
+	map<string, vector<pair<double, double>>> history;
 
+	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
+	{
+		auto current = getBandwidthInBytes();
+
+		for (auto &[iface, usage] : current)
+		{
+			auto &[rx, tx] = usage;
+
+			// Inserisci nuovo valore in coda
+			history[iface].push_back({rx, tx});
+		}
+
+		this_thread::sleep_for(chrono::seconds(intervalSeconds));
+	}
+
+	map<string, pair<double, double>> bandwidthInBytes;
+
+	// Calcola la media
+	for (auto &[iface, traffic] : history)
+	{
+		double totalRx = 0, totalTx = 0;
+		for (auto &[r, t] : traffic)
+		{
+			totalRx += r;
+			totalTx += t;
+		}
+
+		uint64_t avgRx = totalRx / traffic.size();
+		uint64_t avgTx = totalTx / traffic.size();
+
+		bandwidthInBytes[iface] = make_pair(avgRx, avgTx);
+	}
+
+	return bandwidthInBytes;
+}
+
+map<string, pair<double, double>> System::getBandwidthInBytes()
+{
+	map<string, pair<double, double>> bandwidthInMbps;
+
+	// lettura iniziale
 	auto before = getNetworkUsage();
+	auto t1 = chrono::steady_clock::now();
+
 	this_thread::sleep_for(chrono::seconds(1));
+
+	// lettura finale
 	auto after = getNetworkUsage();
+	auto t2 = chrono::steady_clock::now();
+
+	// Calcola il tempo trascorso in secondi (come double)
+	chrono::duration<double> elapsed = t2 - t1;
+	double elapsedSeconds = elapsed.count();
 
 	for (const auto &[iface, afterStats] : after)
 	{
@@ -573,52 +625,13 @@ map<string, pair<uint64_t, uint64_t>> System::getBandwidthInBytes()
 			auto [receivedBytesBefore, transmittedBytesBefore] = it->second;
 			auto [receivedBytesAfter, transmittedBytesAfter] = afterStats;
 
-			bandwidthInMbps[iface] = make_pair(receivedBytesAfter - receivedBytesBefore, transmittedBytesAfter - transmittedBytesBefore);
+			bandwidthInMbps[iface] = make_pair(
+				(receivedBytesAfter - receivedBytesBefore) / elapsedSeconds, (transmittedBytesAfter - transmittedBytesBefore) / elapsedSeconds
+			);
 		}
 	}
 
 	return bandwidthInMbps;
-}
-
-map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
-{
-	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
-	map<string, vector<pair<uint64_t, uint64_t>>> history;
-
-	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
-	{
-		auto current = getBandwidthInBytes();
-
-		for (auto &[iface, usage] : current)
-		{
-			auto &[receivedBytes, transmittedBytes] = usage;
-
-			// Inserisci nuovo valore in coda
-			history[iface].push_back({receivedBytes, transmittedBytes});
-		}
-
-		this_thread::sleep_for(chrono::seconds(intervalSeconds));
-	}
-
-	map<string, pair<uint64_t, uint64_t>> bandwidthInBytes;
-
-	// Calcola la media
-	for (auto &[iface, traffic] : history)
-	{
-		uint64_t totalReceivedBytes = 0, totalTransmittedBytes = 0;
-		for (auto &[received, transmitted] : traffic)
-		{
-			totalReceivedBytes += received;
-			totalTransmittedBytes += transmitted;
-		}
-
-		uint64_t avgReceivedBytes = totalReceivedBytes / traffic.size();
-		uint64_t avgTransmittedBytes = totalTransmittedBytes / traffic.size();
-
-		bandwidthInBytes[iface] = make_pair(avgReceivedBytes, avgTransmittedBytes);
-	}
-
-	return bandwidthInBytes;
 }
 
 map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
