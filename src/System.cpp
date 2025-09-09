@@ -554,14 +554,17 @@ string System::homeDirectory()
 #endif
 }
 
-map<string, pair<double, double>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
+// Per rendere il calcolo piu stabile possiamo:
+// - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
+// - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
+map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
 	map<string, vector<pair<double, double>>> history;
 
 	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
 	{
-		auto current = getBandwidthInBytes();
+		auto current = getBandwidthInBytes(); // bytes/sec
 
 		for (auto &[iface, usage] : current)
 		{
@@ -574,7 +577,8 @@ map<string, pair<double, double>> System::getAvgBandwidthInBytes(int intervalSec
 		this_thread::sleep_for(chrono::seconds(intervalSeconds));
 	}
 
-	map<string, pair<double, double>> bandwidthInBytes;
+	// da double arrotondiamo a uint64_t
+	map<string, pair<uint64_t, uint64_t>> bandwidthInBytes;
 
 	// Calcola la media
 	for (auto &[iface, traffic] : history)
@@ -586,8 +590,8 @@ map<string, pair<double, double>> System::getAvgBandwidthInBytes(int intervalSec
 			totalTx += t;
 		}
 
-		uint64_t avgRx = totalRx / traffic.size();
-		uint64_t avgTx = totalTx / traffic.size();
+		double avgRx = totalRx / traffic.size();
+		double avgTx = totalTx / traffic.size();
 
 		bandwidthInBytes[iface] = make_pair(avgRx, avgTx);
 	}
@@ -609,7 +613,7 @@ map<string, pair<double, double>> System::getBandwidthInBytes()
 	auto after = getNetworkUsage();
 	auto t2 = chrono::steady_clock::now();
 
-	// Calcola il tempo trascorso in secondi (come double)
+	// Calcola il tempo trascorso in secondi per evitare imprecisioni dello sleep (come double)
 	chrono::duration<double> elapsed = t2 - t1;
 	double elapsedSeconds = elapsed.count();
 
