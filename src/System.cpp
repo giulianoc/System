@@ -557,7 +557,8 @@ string System::homeDirectory()
 // Per rendere il calcolo piu stabile possiamo:
 // - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
 // - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
-map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int intervalSeconds, int windowSize)
+map<string, pair<uint64_t, uint64_t>>
+System::getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds, int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
 	map<string, vector<pair<double, double>>> history;
@@ -578,14 +579,22 @@ map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int interva
 	}
 
 	// da double arrotondiamo a uint64_t
-	map<string, pair<uint64_t, uint64_t>> bandwidthInBytes;
+	map<string, pair<uint64_t, uint64_t>> avgBandwidthInBytes;
+	peakInBytes.clear();
 
-	// Calcola la media
+	// Calcola la media e picco
 	for (auto &[iface, traffic] : history)
 	{
+		double peakRx = 0, peakTx = 0;
 		double totalRx = 0, totalTx = 0;
+
 		for (auto &[r, t] : traffic)
 		{
+			if (r > peakRx)
+				peakRx = r;
+			if (t > peakTx)
+				peakTx = t;
+
 			totalRx += r;
 			totalTx += t;
 		}
@@ -593,10 +602,11 @@ map<string, pair<uint64_t, uint64_t>> System::getAvgBandwidthInBytes(int interva
 		double avgRx = totalRx / traffic.size();
 		double avgTx = totalTx / traffic.size();
 
-		bandwidthInBytes[iface] = make_pair(avgRx, avgTx);
+		avgBandwidthInBytes[iface] = make_pair(avgRx, avgTx);
+		peakInBytes[iface] = make_pair(peakRx, peakTx);
 	}
 
-	return bandwidthInBytes;
+	return avgBandwidthInBytes;
 }
 
 map<string, pair<double, double>> System::getBandwidthInBytes()

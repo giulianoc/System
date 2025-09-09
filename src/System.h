@@ -57,7 +57,8 @@ class System
 
 	static map<string, pair<double, double>> getBandwidthInBytes();
 
-	static map<string, pair<uint64_t, uint64_t>> getAvgBandwidthInBytes(int intervalSeconds = 1, int windowSize = 5);
+	static map<string, pair<uint64_t, uint64_t>>
+	getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds = 1, int windowSize = 5);
 
 	// interface name, type and IP
 	static vector<tuple<string, string, string>> getActiveNetworkInterface();
