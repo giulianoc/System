@@ -666,7 +666,7 @@ map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 
 		istringstream iss(line);
 		getline(iss, iface, ':');
-		iface.erase(0, iface.find_first_not_of(" "));
+		iface.erase(0, iface.find_first_not_of(' '));
 
 		iss >> receivedBytes;
 		// skips next 7 fields
@@ -686,7 +686,7 @@ vector<tuple<string, string, string>> System::getActiveNetworkInterface()
 {
 	vector<tuple<string, string, string>> activeNetworkInterfaces;
 
-	struct ifaddrs *ifaddr, *ifa;
+	struct ifaddrs *ifaddr;
 	char addrStr[INET6_ADDRSTRLEN];
 
 	if (getifaddrs(&ifaddr) == -1)
@@ -695,7 +695,7 @@ vector<tuple<string, string, string>> System::getActiveNetworkInterface()
 		throw runtime_error(std::format("getifad failed, {}", err, strerror(err)));
 	}
 
-	for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+	for (struct ifaddrs *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
 	{
 		if (!ifa->ifa_addr)
 			continue;
@@ -712,15 +712,15 @@ vector<tuple<string, string, string>> System::getActiveNetworkInterface()
 
 		if (family == AF_INET)
 		{ // IPv4
-			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+			const struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in *>(ifa->ifa_addr);
 			inet_ntop(AF_INET, &(sa->sin_addr), addrStr, INET_ADDRSTRLEN);
-			activeNetworkInterfaces.push_back(make_tuple(ifa->ifa_name, "IPv4", addrStr));
+			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv4", addrStr);
 		}
 		else if (family == AF_INET6)
 		{ // IPv6
-			struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+			auto *sa6 = reinterpret_cast<struct sockaddr_in6 *>(ifa->ifa_addr);
 			inet_ntop(AF_INET6, &(sa6->sin6_addr), addrStr, INET6_ADDRSTRLEN);
-			activeNetworkInterfaces.push_back(make_tuple(ifa->ifa_name, "IPv6", addrStr));
+			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv6", addrStr);
 		}
 	}
 

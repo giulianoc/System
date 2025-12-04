@@ -21,10 +21,8 @@
  with the authors.
 */
 
-#ifndef System_h
-#define System_h
+#pragma once
 
-#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -38,7 +36,6 @@ using namespace std;
 */
 class System
 {
-
   public:
 	/*
 	metodi completi ma non ancora pubblicati
