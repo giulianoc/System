@@ -48,6 +48,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>
+#include <charconv>
 
 /*
 Copiati da Xenon
@@ -682,9 +683,9 @@ map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 	return usage;
 }
 
-vector<tuple<string, string, string>> System::getActiveNetworkInterface()
+vector<tuple<string, string, bool, string>> System::getActiveNetworkInterface()
 {
-	vector<tuple<string, string, string>> activeNetworkInterfaces;
+	vector<tuple<string, string, bool, string>> activeNetworkInterfaces;
 
 	struct ifaddrs *ifaddr;
 	char addrStr[INET6_ADDRSTRLEN];
@@ -714,17 +715,75 @@ vector<tuple<string, string, string>> System::getActiveNetworkInterface()
 		{ // IPv4
 			const struct sockaddr_in *sa = reinterpret_cast<struct sockaddr_in *>(ifa->ifa_addr);
 			inet_ntop(AF_INET, &(sa->sin_addr), addrStr, INET_ADDRSTRLEN);
-			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv4", addrStr);
+			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv4", isPrivateIPv4(addrStr),addrStr);
 		}
 		else if (family == AF_INET6)
 		{ // IPv6
-			auto *sa6 = reinterpret_cast<struct sockaddr_in6 *>(ifa->ifa_addr);
+			const auto *sa6 = reinterpret_cast<struct sockaddr_in6 *>(ifa->ifa_addr);
 			inet_ntop(AF_INET6, &(sa6->sin6_addr), addrStr, INET6_ADDRSTRLEN);
-			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv6", addrStr);
+			activeNetworkInterfaces.emplace_back(ifa->ifa_name, "IPv6", isPrivateIPv6(sa6->sin6_addr), addrStr);
 		}
 	}
 
 	freeifaddrs(ifaddr);
 
 	return activeNetworkInterfaces;
+}
+
+bool System::isPrivateIPv4(const string& ip)
+{
+	int nums[4];
+	const char* begin = ip.data();
+	const char* end   = ip.data() + ip.size();
+
+	for (int i = 0; i < 4; ++i)
+	{
+		// convert number
+		auto [ptr, ec] = from_chars(begin, end, nums[i]);
+		if (ec != std::errc() || nums[i] < 0 || nums[i] > 255)
+			return false;
+
+		// move ptr after the number
+		begin = ptr;
+
+		// expect dot (except last)
+		if (i < 3) {
+			if (begin >= end || *begin != '.')
+				return false;
+			begin++;
+		}
+	}
+
+	// validate exact consumption
+	if (begin != end)
+		return false;
+
+	const int a = nums[0];
+	const int b = nums[1];
+
+	// 10.0.0.0/8
+	if (a == 10)
+		return true;
+
+	// 172.16.0.0/12
+	if (a == 172 && b >= 16 && b <= 31)
+		return true;
+
+	// 192.168.0.0/16
+	if (a == 192 && b == 168)
+		return true;
+
+	return false;
+}
+
+bool System::isPrivateIPv6(const in6_addr& addr)
+{
+	// Primo byte dell'indirizzo IPv6
+	uint8_t b0 = addr.s6_addr[0];
+
+	// fc00::/7  → 0b1111110x (== 0xFC o 0xFD)
+	if ((b0 & 0xFE) == 0xFC)
+		return true;
+
+	return false;
 }

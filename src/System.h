@@ -26,6 +26,13 @@
 #include <map>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+#else
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+#endif
 
 using namespace std;
 
@@ -57,11 +64,11 @@ class System
 	static map<string, pair<uint64_t, uint64_t>>
 	getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds = 1, int windowSize = 5);
 
-	// interface name, type and IP
-	static vector<tuple<string, string, string>> getActiveNetworkInterface();
+	// interface name, type, private, IP
+	static vector<tuple<string, string, bool, string>> getActiveNetworkInterface();
 
   private:
 	static map<string, pair<uint64_t, uint64_t>> getNetworkUsage();
+	static bool isPrivateIPv4(const string& ip);
+	static bool isPrivateIPv6(const in6_addr& addr);
 };
-
-#endif
