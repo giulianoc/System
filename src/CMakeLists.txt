@@ -30,6 +30,11 @@ SET (HEADERS
 
 add_library (System SHARED ${SOURCES} ${HEADERS})
 
-install (TARGETS System DESTINATION lib)
-install (FILES ${HEADERS} DESTINATION include)
-
+if(ZORAC)
+	install (TARGETS System DESTINATION services/cms-import)
+	install (TARGETS System DESTINATION services/cms-pusher)
+	install (TARGETS System DESTINATION services/cms-getter)
+else()
+	install (TARGETS System DESTINATION lib)
+	install (FILES ${HEADERS} DESTINATION include)
+endif()
