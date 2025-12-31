@@ -38,7 +38,6 @@
 #endif
 #include <arpa/inet.h>
 #include <assert.h>
-#include <chrono>
 #include <errno.h>
 #include <fstream>
 #include <ifaddrs.h>
@@ -455,7 +454,7 @@ BOOL GetLocalHostName(char *name)
 }
 */
 
-string System::hostName()
+std::string System::hostName()
 {
 // host name initialization
 #ifdef WIN32
@@ -490,13 +489,13 @@ string System::hostName()
 	struct utsname unUtsname;
 
 	if (uname(&unUtsname) == -1)
-		throw runtime_error("uname failed");
+		throw std::runtime_error("uname failed");
 
 	return unUtsname.nodename;
 #endif
 }
 
-string System::homeDirectory()
+std::string System::homeDirectory()
 {
 // host name initialization
 #ifdef WIN32
@@ -548,7 +547,7 @@ string System::homeDirectory()
 	{
 		const char *pHome = getenv("HOME");
 		if (pHome == (const char *)NULL)
-			throw runtime_error("HOME env var not defined");
+			throw std::runtime_error("HOME env var not defined");
 
 		return pHome;
 	}
@@ -558,11 +557,11 @@ string System::homeDirectory()
 // Per rendere il calcolo piu stabile possiamo:
 // - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
 // - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
-map<string, pair<uint64_t, uint64_t>>
-System::getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds, int windowSize)
+std::map<std::string, std::pair<uint64_t, uint64_t>>
+System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds, int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
-	map<string, vector<pair<double, double>>> history;
+	std::map<std::string, std::vector<std::pair<double, double>>> history;
 
 	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
 	{
@@ -576,11 +575,11 @@ System::getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &pea
 			history[iface].push_back({rx, tx});
 		}
 
-		this_thread::sleep_for(chrono::seconds(intervalSeconds));
+		std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
 	}
 
 	// da double arrotondiamo a uint64_t
-	map<string, pair<uint64_t, uint64_t>> avgBandwidthInBytes;
+	std::map<std::string, std::pair<uint64_t, uint64_t>> avgBandwidthInBytes;
 	peakInBytes.clear();
 
 	// Calcola la media e picco
@@ -603,29 +602,29 @@ System::getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &pea
 		double avgRx = totalRx / traffic.size();
 		double avgTx = totalTx / traffic.size();
 
-		avgBandwidthInBytes[iface] = make_pair(avgRx, avgTx);
-		peakInBytes[iface] = make_pair(peakRx, peakTx);
+		avgBandwidthInBytes[iface] = std::make_pair(avgRx, avgTx);
+		peakInBytes[iface] = std::make_pair(peakRx, peakTx);
 	}
 
 	return avgBandwidthInBytes;
 }
 
-map<string, pair<double, double>> System::getBandwidthInBytes()
+std::map<std::string, std::pair<double, double>> System::getBandwidthInBytes()
 {
-	map<string, pair<double, double>> bandwidthInMbps;
+	std::map<std::string, std::pair<double, double>> bandwidthInMbps;
 
 	// lettura iniziale
 	auto before = getNetworkUsage();
-	auto t1 = chrono::steady_clock::now();
+	auto t1 = std::chrono::steady_clock::now();
 
-	this_thread::sleep_for(chrono::seconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 
 	// lettura finale
 	auto after = getNetworkUsage();
-	auto t2 = chrono::steady_clock::now();
+	auto t2 = std::chrono::steady_clock::now();
 
 	// Calcola il tempo trascorso in secondi per evitare imprecisioni dello sleep (come double)
-	chrono::duration<double> elapsed = t2 - t1;
+	std::chrono::duration<double> elapsed = t2 - t1;
 	double elapsedSeconds = elapsed.count();
 
 	for (const auto &[iface, afterStats] : after)
@@ -640,7 +639,7 @@ map<string, pair<double, double>> System::getBandwidthInBytes()
 			auto [receivedBytesBefore, transmittedBytesBefore] = it->second;
 			auto [receivedBytesAfter, transmittedBytesAfter] = afterStats;
 
-			bandwidthInMbps[iface] = make_pair(
+			bandwidthInMbps[iface] = std::make_pair(
 				(receivedBytesAfter - receivedBytesBefore) / elapsedSeconds, (transmittedBytesAfter - transmittedBytesBefore) / elapsedSeconds
 			);
 		}
@@ -649,23 +648,23 @@ map<string, pair<double, double>> System::getBandwidthInBytes()
 	return bandwidthInMbps;
 }
 
-map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
+std::map<std::string, std::pair<uint64_t, uint64_t>> System::getNetworkUsage()
 {
-	ifstream net("/proc/net/dev");
-	string line;
-	map<string, pair<uint64_t, uint64_t>> usage; // iface -> (rx, tx)
+	std::ifstream net("/proc/net/dev");
+	std::string line;
+	std::map<std::string, std::pair<uint64_t, uint64_t>> usage; // iface -> (rx, tx)
 
 	while (getline(net, line))
 	{
 		// line: Interfaccia: bytes    packets errs drop fifo frame compressed multicast
 		// es: eth0: 12345678 1000 0 0 0 0 0 0 9876543 2000 0 0 0 0 0 0
-		if (line.find(":") == string::npos)
+		if (line.find(":") == std::string::npos)
 			continue;
 
-		string iface;
+		std::string iface;
 		uint64_t receivedBytes, transmittedBytes;
 
-		istringstream iss(line);
+		std::istringstream iss(line);
 		getline(iss, iface, ':');
 		iface.erase(0, iface.find_first_not_of(' '));
 
@@ -683,9 +682,9 @@ map<string, pair<uint64_t, uint64_t>> System::getNetworkUsage()
 	return usage;
 }
 
-vector<tuple<string, string, bool, string>> System::getActiveNetworkInterface()
+std::vector<std::tuple<std::string, std::string, bool, std::string>> System::getActiveNetworkInterface()
 {
-	vector<tuple<string, string, bool, string>> activeNetworkInterfaces;
+	std::vector<std::tuple<std::string, std::string, bool, std::string>> activeNetworkInterfaces;
 
 	struct ifaddrs *ifaddr;
 	char addrStr[INET6_ADDRSTRLEN];
@@ -693,7 +692,7 @@ vector<tuple<string, string, bool, string>> System::getActiveNetworkInterface()
 	if (getifaddrs(&ifaddr) == -1)
 	{
 		int err = errno;
-		throw runtime_error(std::format("getifad failed, {}", err, strerror(err)));
+		throw std::runtime_error(std::format("getifad failed, {}", err, strerror(err)));
 	}
 
 	for (struct ifaddrs *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
@@ -730,7 +729,7 @@ vector<tuple<string, string, bool, string>> System::getActiveNetworkInterface()
 	return activeNetworkInterfaces;
 }
 
-bool System::isPrivateIPv4(const string& ip)
+bool System::isPrivateIPv4(const std::string& ip)
 {
 	int nums[4];
 	const char* begin = ip.data();
@@ -739,7 +738,7 @@ bool System::isPrivateIPv4(const string& ip)
 	for (int i = 0; i < 4; ++i)
 	{
 		// convert number
-		auto [ptr, ec] = from_chars(begin, end, nums[i]);
+		auto [ptr, ec] = std::from_chars(begin, end, nums[i]);
 		if (ec != std::errc() || nums[i] < 0 || nums[i] > 255)
 			return false;
 

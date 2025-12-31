@@ -34,8 +34,6 @@
 	#include <arpa/inet.h>
 #endif
 
-using namespace std;
-
 /**
 	The System class is a collection of static methods just
 	to hide the differences to retrieve information between
@@ -55,20 +53,20 @@ class System
 	/**
 			Return the host name of the machine.
 	*/
-	static string hostName();
+	static std::string hostName();
 
-	static string homeDirectory();
+	static std::string homeDirectory();
 
-	static map<string, pair<double, double>> getBandwidthInBytes();
+	static std::map<std::string, std::pair<double, double>> getBandwidthInBytes();
 
-	static map<string, pair<uint64_t, uint64_t>>
-	getAvgAndPeakBandwidthInBytes(map<string, pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds = 1, int windowSize = 5);
+	static std::map<std::string, std::pair<uint64_t, uint64_t>>
+	getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds = 1, int windowSize = 5);
 
 	// interface name, type, private, IP
-	static vector<tuple<string, string, bool, string>> getActiveNetworkInterface();
+	static std::vector<std::tuple<std::string, std::string, bool, std::string>> getActiveNetworkInterface();
 
   private:
-	static map<string, pair<uint64_t, uint64_t>> getNetworkUsage();
-	static bool isPrivateIPv4(const string& ip);
+	static std::map<std::string, std::pair<uint64_t, uint64_t>> getNetworkUsage();
+	static bool isPrivateIPv4(const std::string& ip);
 	static bool isPrivateIPv6(const in6_addr& addr);
 };
