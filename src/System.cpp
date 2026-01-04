@@ -558,7 +558,8 @@ std::string System::homeDirectory()
 // - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
 // - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
 std::map<std::string, std::pair<uint64_t, uint64_t>>
-System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds, int windowSize)
+System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes,
+	const int intervalSeconds, const int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
 	std::map<std::string, std::vector<std::pair<double, double>>> history;
@@ -566,13 +567,12 @@ System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, 
 	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
 	{
 		auto current = getBandwidthInBytes(); // bytes/sec
-
 		for (auto &[iface, usage] : current)
 		{
 			auto &[rx, tx] = usage;
 
 			// Inserisci nuovo valore in coda
-			history[iface].push_back({rx, tx});
+			history[iface].emplace_back(rx, tx);
 		}
 
 		std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
