@@ -486,7 +486,7 @@ std::string System::hostName()
 		return err;
 	}
 #else
-	struct utsname unUtsname;
+	struct utsname unUtsname{};
 
 	if (uname(&unUtsname) == -1)
 		throw std::runtime_error("uname failed");
@@ -546,7 +546,7 @@ std::string System::homeDirectory()
 #else
 	{
 		const char *pHome = getenv("HOME");
-		if (pHome == (const char *)NULL)
+		if (pHome == (const char *)nullptr)
 			throw std::runtime_error("HOME env var not defined");
 
 		return pHome;
@@ -566,8 +566,7 @@ System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, 
 
 	for (int windowIndex = 0; windowIndex < windowSize; windowIndex++)
 	{
-		auto current = getBandwidthInBytes(); // bytes/sec
-		for (auto &[iface, usage] : current)
+		for (auto current = getBandwidthInBytes(); auto &[iface, usage] : current)
 		{
 			auto &[rx, tx] = usage;
 
@@ -615,17 +614,17 @@ std::map<std::string, std::pair<double, double>> System::getBandwidthInBytes()
 
 	// lettura iniziale
 	auto before = getNetworkUsage();
-	auto t1 = std::chrono::steady_clock::now();
+	const auto t1 = std::chrono::steady_clock::now();
 
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 
 	// lettura finale
 	auto after = getNetworkUsage();
-	auto t2 = std::chrono::steady_clock::now();
+	const auto t2 = std::chrono::steady_clock::now();
 
 	// Calcola il tempo trascorso in secondi per evitare imprecisioni dello sleep (come double)
-	std::chrono::duration<double> elapsed = t2 - t1;
-	double elapsedSeconds = elapsed.count();
+	const std::chrono::duration<double> elapsed = t2 - t1;
+	const double elapsedSeconds = elapsed.count();
 
 	for (const auto &[iface, afterStats] : after)
 	{
@@ -633,15 +632,15 @@ std::map<std::string, std::pair<double, double>> System::getBandwidthInBytes()
 		if (iface == "lo" || iface.starts_with("docker"))
 			continue;
 
-		auto it = before.find(iface);
-		if (it != before.end())
+		if (auto it = before.find(iface); it != before.end())
 		{
 			auto [receivedBytesBefore, transmittedBytesBefore] = it->second;
 			auto [receivedBytesAfter, transmittedBytesAfter] = afterStats;
 
-			bandwidthInMbps[iface] = std::make_pair(
-				(receivedBytesAfter - receivedBytesBefore) / elapsedSeconds, (transmittedBytesAfter - transmittedBytesBefore) / elapsedSeconds
-			);
+			const double rxBps = static_cast<double>(receivedBytesAfter - receivedBytesBefore) / elapsedSeconds;
+			const double txBps = static_cast<double>(transmittedBytesAfter - transmittedBytesBefore) / elapsedSeconds;
+
+			bandwidthInMbps[iface] = { rxBps, txBps };
 		}
 	}
 
@@ -658,7 +657,7 @@ std::map<std::string, std::pair<uint64_t, uint64_t>> System::getNetworkUsage()
 	{
 		// line: Interfaccia: bytes    packets errs drop fifo frame compressed multicast
 		// es: eth0: 12345678 1000 0 0 0 0 0 0 9876543 2000 0 0 0 0 0 0
-		if (line.find(":") == std::string::npos)
+		if (line.find(':') == std::string::npos)
 			continue;
 
 		std::string iface;
