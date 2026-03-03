@@ -557,8 +557,7 @@ std::string System::homeDirectory()
 // Per rendere il calcolo piu stabile possiamo:
 // - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
 // - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
-std::map<std::string, std::pair<uint64_t, uint64_t>>
-System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes,
+std::map<std::string, std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> System::getAvgAndPeakBandwidthInBytes(
 	const int intervalSeconds, const int windowSize)
 {
 	// Per ogni interfaccia, manteniamo una coda degli ultimi N valori
@@ -578,34 +577,32 @@ System::getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, 
 	}
 
 	// da double arrotondiamo a uint64_t
-	std::map<std::string, std::pair<uint64_t, uint64_t>> avgBandwidthInBytes;
-	peakInBytes.clear();
+	std::map<std::string, std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> avgAndPeakBandwidthInBytes;
 
 	// Calcola la media e picco
 	for (auto &[iface, traffic] : history)
 	{
-		double peakRx = 0, peakTx = 0;
-		double totalRx = 0, totalTx = 0;
+		double rxPeak = 0, txPeak = 0;
+		double rxTotal = 0, txTotal = 0;
 
 		for (auto &[r, t] : traffic)
 		{
-			if (r > peakRx)
-				peakRx = r;
-			if (t > peakTx)
-				peakTx = t;
+			if (r > rxPeak)
+				rxPeak = r;
+			if (t > txPeak)
+				txPeak = t;
 
-			totalRx += r;
-			totalTx += t;
+			rxTotal += r;
+			txTotal += t;
 		}
 
-		double avgRx = totalRx / traffic.size();
-		double avgTx = totalTx / traffic.size();
+		double rxAvg = rxTotal / traffic.size();
+		double txAvg = txTotal / traffic.size();
 
-		avgBandwidthInBytes[iface] = std::make_pair(avgRx, avgTx);
-		peakInBytes[iface] = std::make_pair(peakRx, peakTx);
+		avgAndPeakBandwidthInBytes[iface] = {rxAvg, txAvg, rxPeak, txPeak};
 	}
 
-	return avgBandwidthInBytes;
+	return avgAndPeakBandwidthInBytes;
 }
 
 std::map<std::string, std::pair<double, double>> System::getBandwidthInBytes()

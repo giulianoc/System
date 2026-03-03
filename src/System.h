@@ -59,8 +59,8 @@ class System
 
 	static std::map<std::string, std::pair<double, double>> getBandwidthInBytes();
 
-	static std::map<std::string, std::pair<uint64_t, uint64_t>>
-	getAvgAndPeakBandwidthInBytes(std::map<std::string, std::pair<uint64_t, uint64_t>> &peakInBytes, int intervalSeconds = 1, int windowSize = 5);
+	static std::map<std::string, std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> getAvgAndPeakBandwidthInBytes(
+		int intervalSeconds = 1, int windowSize = 5);
 
 	// interface name, type, private, IP
 	static std::vector<std::tuple<std::string, std::string, bool, std::string>> getActiveNetworkInterface();
