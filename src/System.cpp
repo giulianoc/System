@@ -554,6 +554,77 @@ std::string System::homeDirectory()
 #endif
 }
 
+// ritorna bytes/sec per iface tra due letture distanziate di elapsedSeconds
+std::map<std::string, std::pair<double,double>> System::bandwidthBetween(
+	const std::map<std::string, std::pair<uint64_t, uint64_t>>& before,
+	const std::map<std::string, std::pair<uint64_t, uint64_t>>& after,
+	const double elapsedSeconds)
+{
+    std::map<std::string, std::pair<double,double>> out;
+
+    for (const auto& [iface, afterStats] : after)
+    {
+    	// non real interface
+    	if (iface == "lo" || iface.starts_with("docker"))
+            continue;
+
+        auto it = before.find(iface);
+        if (it == before.end()) continue;
+
+        auto [rxBefore, txBefore] = it->second;
+        auto [rxAfter,  txAfter ] = afterStats;
+
+        const double rxBps = static_cast<double>(rxAfter - rxBefore) / elapsedSeconds;
+        const double txBps = static_cast<double>(txAfter - txBefore) / elapsedSeconds;
+
+        out[iface] = {rxBps, txBps};
+    }
+    return out;
+}
+
+std::map<std::string, std::tuple<uint64_t,uint64_t,uint64_t,uint64_t>> System::getAvgAndPeakBandwidthInBytes(
+	const int intervalSeconds, const int windowSize)
+{
+    std::map<std::string, std::vector<std::pair<double,double>>> history;
+
+    auto before = getNetworkUsage();
+    auto tBefore = std::chrono::steady_clock::now();
+
+    for (int i = 0; i < windowSize; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
+
+        auto after = getNetworkUsage();
+        auto tAfter = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = tAfter - tBefore;
+
+        auto current = bandwidthBetween(before, after, elapsed.count());
+        for (auto& [iface, usage] : current)
+            history[iface].push_back(usage);
+
+        before = std::move(after);
+        tBefore = tAfter;
+    }
+
+    std::map<std::string, std::tuple<uint64_t,uint64_t,uint64_t,uint64_t>> out;
+    for (auto& [iface, traffic] : history)
+    {
+        double rxPeak=0, txPeak=0, rxTotal=0, txTotal=0;
+        for (auto& [rx, tx] : traffic)
+        {
+            rxPeak = std::max(rxPeak, rx);
+            txPeak = std::max(txPeak, tx);
+            rxTotal += rx;
+            txTotal += tx;
+        }
+        const double rxAvg = rxTotal / static_cast<double>(traffic.size());
+        const double txAvg = txTotal / static_cast<double>(traffic.size());
+        out[iface] = {static_cast<uint64_t>(rxAvg), static_cast<uint64_t>(txAvg), static_cast<uint64_t>(rxPeak), static_cast<uint64_t>(txPeak)};
+    }
+    return out;
+}
+
+/*
 // Per rendere il calcolo piu stabile possiamo:
 // - aumentare l’intervallo tra le letture a 5 o 10 secondi per ridurre la sensibilità al traffico "a raffiche"
 // - eseguire letture ogni secondo ma calcolando la media su, ad esempio, gli ultimi 5 secondi:
@@ -643,6 +714,7 @@ std::map<std::string, std::pair<double, double>> System::getBandwidthInBytes()
 
 	return bandwidthInMbps;
 }
+*/
 
 std::map<std::string, std::pair<uint64_t, uint64_t>> System::getNetworkUsage()
 {

@@ -57,16 +57,20 @@ class System
 
 	static std::string homeDirectory();
 
-	static std::map<std::string, std::pair<double, double>> getBandwidthInBytes();
+	// static std::map<std::string, std::pair<double, double>> getBandwidthInBytes();
 
 	static std::map<std::string, std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> getAvgAndPeakBandwidthInBytes(
 		int intervalSeconds = 1, int windowSize = 5);
 
 	// interface name, type, private, IP
 	static std::vector<std::tuple<std::string, std::string, bool, std::string>> getActiveNetworkInterface();
-
-  private:
 	static std::map<std::string, std::pair<uint64_t, uint64_t>> getNetworkUsage();
+	static std::map<std::string, std::pair<double,double>> bandwidthBetween(
+		const std::map<std::string, std::pair<uint64_t, uint64_t>>& before,
+		const std::map<std::string, std::pair<uint64_t, uint64_t>>& after,
+		const double elapsedSeconds);
+
+private:
 	static bool isPrivateIPv4(const std::string& ip);
 	static bool isPrivateIPv6(const in6_addr& addr);
 };
